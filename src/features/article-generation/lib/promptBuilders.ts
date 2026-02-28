@@ -1,6 +1,9 @@
 import type { GenerationSettings } from '../types/generation';
 
 export const TARGET_CHARACTER_COUNT = 2000;
+export const ARTICLE_END_MARKER = '[[ARTICLE_END]]';
+export const MIN_ARTICLE_SECTIONS = 3;
+export const MAX_ARTICLE_SECTIONS = 5;
 
 function toneDescription(tone: GenerationSettings['tone']): string {
   return tone === 'formal'
@@ -73,19 +76,18 @@ ${chunkSummaries.map((summary, index) => `## chunk-${index + 1}\n${summary}`).jo
 }
 
 export function buildArticlePrompt(params: {
-  transcript: string;
   outline: string;
   chunkSummaries: string[];
   settings: GenerationSettings;
 }): string {
-  const { transcript, outline, chunkSummaries, settings } = params;
+  const { outline, chunkSummaries, settings } = params;
 
   return `
 あなたはプロの編集ライターです。以下の情報をもとに、2人対話形式の記事を執筆してください。
 
 # ゴール
 - 完成原稿をMarkdownで出力
-- 本文は約${TARGET_CHARACTER_COUNT}文字
+- 本文は日本語で${TARGET_CHARACTER_COUNT}文字前後（目安: 1,900〜2,100文字）
 - 見出し + 対話本文の構成
 - 1本の記事として読みやすく仕上げる
 
@@ -95,20 +97,45 @@ export function buildArticlePrompt(params: {
 - 文体は「${toneDescription(settings.tone)}」
 - テーマ: ${settings.theme || '未指定'}
 - 追加指示: ${settings.additionalInstructions || 'なし'}
+- \`##\` 見出しは必ず${MIN_ARTICLE_SECTIONS}〜${MAX_ARTICLE_SECTIONS}個にする（1章のみは禁止）
+- 各見出しで対話を十分に展開し、章ごとに話題を分ける
 
 # 出力形式（厳守）
 - 1行目を \`# タイトル\`
 - その後に短い導入文
 - \`## 見出し\` ごとに対話本文を記述
 - 話者行は \`**${settings.speakerA}:** ...\` / \`**${settings.speakerB}:** ...\` 形式
+- 最終行に \`${ARTICLE_END_MARKER}\` を単独行で必ず出力
+- \`${ARTICLE_END_MARKER}\` の後ろには何も書かない
 
 # 構成案
 ${outline}
 
 # チャンク要約
 ${chunkSummaries.map((summary, index) => `### chunk-${index + 1}\n${summary}`).join('\n\n')}
+`.trim();
+}
 
-# 文字起こし全文
-${transcript}
+export function buildArticleContinuationPrompt(params: {
+  currentDraft: string;
+  settings: GenerationSettings;
+}): string {
+  const { currentDraft, settings } = params;
+
+  return `
+あなたはプロの編集ライターです。
+以下は執筆途中のMarkdown記事です。テキストが途中で切れたため、**続きだけ**を書いて完成させてください。
+
+# 指示
+- 既存テキストを繰り返さない
+- 先頭から書き直さない
+- 直前の文脈を受けて自然に続ける
+- 話者は「${settings.speakerA}」「${settings.speakerB}」
+- 文体は「${toneDescription(settings.tone)}」
+- 本文は最終的に約${TARGET_CHARACTER_COUNT}文字（目安: 1,900〜2,100文字）に収める
+- 最終行に \`${ARTICLE_END_MARKER}\` を単独行で必ず出力
+
+# ここまでの原稿
+${currentDraft}
 `.trim();
 }

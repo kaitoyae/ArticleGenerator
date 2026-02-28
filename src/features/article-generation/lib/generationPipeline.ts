@@ -1,4 +1,12 @@
-import { buildArticlePrompt, buildChunkOutlinePrompt, buildGlobalOutlinePrompt } from './promptBuilders';
+import {
+  ARTICLE_END_MARKER,
+  MAX_ARTICLE_SECTIONS,
+  MIN_ARTICLE_SECTIONS,
+  buildArticleContinuationPrompt,
+  buildArticlePrompt,
+  buildChunkOutlinePrompt,
+  buildGlobalOutlinePrompt,
+} from './promptBuilders';
 import { chunkTranscript } from './chunkTranscript';
 import { createGeminiClient } from './geminiClient';
 import { validateGenerationInput } from './articleSchema';
@@ -7,6 +15,9 @@ import type { GenerationSettings, StageProgress } from '../types/generation';
 
 const RETRY_LIMIT = 2;
 const RETRY_BASE_DELAY_MS = 1200;
+const ARTICLE_MAX_OUTPUT_TOKENS = 4096;
+const ARTICLE_CONTINUATION_LIMIT = 3;
+const SECTION_RETRY_LIMIT = 2;
 
 interface RunGenerationPipelineInput {
   apiKey: string;
@@ -92,6 +103,109 @@ function extractTitle(markdown: string): string {
   return '無題の記事';
 }
 
+function hasArticleEndMarker(text: string): boolean {
+  return text.includes(ARTICLE_END_MARKER);
+}
+
+function stripArticleEndMarker(text: string): string {
+  const markerIndex = text.indexOf(ARTICLE_END_MARKER);
+  if (markerIndex === -1) {
+    return text.trim();
+  }
+  return text.slice(0, markerIndex).trim();
+}
+
+function mergeDraft(currentDraft: string, nextChunk: string): string {
+  if (!currentDraft) {
+    return nextChunk.trim();
+  }
+
+  const next = nextChunk.trim();
+  if (!next) {
+    return currentDraft;
+  }
+
+  const overlapLimit = Math.min(600, currentDraft.length, next.length);
+  for (let overlap = overlapLimit; overlap >= 40; overlap -= 1) {
+    if (currentDraft.endsWith(next.slice(0, overlap))) {
+      const remaining = next.slice(overlap).trim();
+      return remaining ? `${currentDraft}\n${remaining}` : currentDraft;
+    }
+  }
+
+  return `${currentDraft}\n${next}`;
+}
+
+function countH2Sections(markdown: string): number {
+  const matches = markdown.match(/^##\s+\S+/gm);
+  return matches?.length ?? 0;
+}
+
+function createSectionEnforcedSettings(settings: GenerationSettings): GenerationSettings {
+  const enforcedInstruction = `必ず##見出しを${MIN_ARTICLE_SECTIONS}〜${MAX_ARTICLE_SECTIONS}個で構成し、1章のみの出力は禁止。`;
+  const mergedAdditionalInstructions = settings.additionalInstructions
+    ? `${settings.additionalInstructions}\n${enforcedInstruction}`
+    : enforcedInstruction;
+
+  return {
+    ...settings,
+    additionalInstructions: mergedAdditionalInstructions,
+  };
+}
+
+async function generateArticleMarkdown(params: {
+  client: ReturnType<typeof createGeminiClient>;
+  settings: GenerationSettings;
+  outline: string;
+  chunkSummaries: string[];
+  onProgress?: (progress: StageProgress) => void;
+  abortSignal?: AbortSignal;
+}): Promise<string> {
+  const { client, settings, outline, chunkSummaries, onProgress, abortSignal } = params;
+  let draft = '';
+
+  for (let round = 0; round < ARTICLE_CONTINUATION_LIMIT; round += 1) {
+    if (abortSignal?.aborted) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
+
+    onProgress?.({
+      stage: 'writing',
+      message:
+        round === 0
+          ? '本文を執筆しています...'
+          : `本文が長いため続きを執筆しています... (${round}/${ARTICLE_CONTINUATION_LIMIT - 1})`,
+    });
+
+    const prompt =
+      round === 0
+        ? buildArticlePrompt({
+            outline,
+            chunkSummaries,
+            settings,
+          })
+        : buildArticleContinuationPrompt({
+            currentDraft: draft,
+            settings,
+          });
+
+    const result = await withRetry(
+      () =>
+        client.generateTextResult(prompt, {
+          maxOutputTokens: ARTICLE_MAX_OUTPUT_TOKENS,
+        }),
+      abortSignal,
+    );
+
+    draft = mergeDraft(draft, result.text);
+    if (hasArticleEndMarker(draft)) {
+      return stripArticleEndMarker(draft);
+    }
+  }
+
+  throw new Error('本文生成が途中で終了しました。再度生成をお試しください。');
+}
+
 export async function runGenerationPipeline({
   apiKey,
   transcript,
@@ -162,20 +276,36 @@ export async function runGenerationPipeline({
     abortSignal,
   );
 
-  onProgress?.({ stage: 'writing', message: '本文を執筆しています...' });
-  const markdown = await withRetry(
-    () =>
-      client.generateText(
-        buildArticlePrompt({
-          transcript,
-          outline,
-          chunkSummaries,
-          settings,
-        }),
-        { maxOutputTokens: 4096 },
-      ),
-    abortSignal,
-  );
+  let markdown = '';
+  for (let sectionAttempt = 0; sectionAttempt <= SECTION_RETRY_LIMIT; sectionAttempt += 1) {
+    const effectiveSettings =
+      sectionAttempt === 0 ? settings : createSectionEnforcedSettings(settings);
+
+    markdown = await generateArticleMarkdown({
+      client,
+      settings: effectiveSettings,
+      outline,
+      chunkSummaries,
+      onProgress,
+      abortSignal,
+    });
+
+    const sectionCount = countH2Sections(markdown);
+    if (sectionCount >= MIN_ARTICLE_SECTIONS) {
+      break;
+    }
+
+    if (sectionAttempt === SECTION_RETRY_LIMIT) {
+      throw new Error(
+        `章立ての生成に失敗しました（現在${sectionCount}章）。再度生成してください。`,
+      );
+    }
+
+    onProgress?.({
+      stage: 'writing',
+      message: `章立てが不足したため再生成しています...（現在${sectionCount}章）`,
+    });
+  }
 
   onProgress?.({ stage: 'done', message: '記事生成が完了しました。' });
 
