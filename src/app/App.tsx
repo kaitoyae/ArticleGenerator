@@ -15,8 +15,7 @@ const envApiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim() ?? '';
 
 const defaultSettings: GenerationSettingsType = {
   theme: '',
-  speakerA: '聞き手',
-  speakerB: '話し手',
+  manualOutline: '',
   tone: 'formal',
   additionalInstructions: '',
 };
@@ -163,9 +162,9 @@ export default function App() {
     <div className="app-shell">
       <header className="app-header">
         <p className="eyebrow">React + Gemini 2.5 Flash</p>
-        <h1>対話記事ジェネレータ</h1>
+        <h1>記事ジェネレータ</h1>
         <p>
-          長文の文字起こしを入力すると、2人対話形式・約2000文字の記事を生成します。
+          長文の文字起こしを入力すると、約2000文字の通常記事を生成します。
         </p>
       </header>
 

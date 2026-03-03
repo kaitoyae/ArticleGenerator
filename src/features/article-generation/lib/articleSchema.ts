@@ -1,9 +1,32 @@
 import { z } from 'zod';
 
+const MIN_OUTLINE_SECTIONS = 3;
+const MAX_OUTLINE_SECTIONS = 5;
+
+function countOutlineSections(raw: string): number {
+  const lines = raw
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const structuredLines = lines.filter((line) => {
+    return /^(#{1,6}\s+|[-*]\s+|\d+\.\s+)/.test(line);
+  });
+
+  return structuredLines.length > 0 ? structuredLines.length : lines.length;
+}
+
 export const generationSettingsSchema = z.object({
   theme: z.string().max(120, 'テーマは120文字以内で入力してください。'),
-  speakerA: z.string().trim().min(1, '話者A名を入力してください。').max(30),
-  speakerB: z.string().trim().min(1, '話者B名を入力してください。').max(30),
+  manualOutline: z
+    .string()
+    .trim()
+    .min(1, '目次を入力してください。')
+    .max(2000, '目次は2000文字以内で入力してください。')
+    .refine((value) => {
+      const sectionCount = countOutlineSections(value);
+      return sectionCount >= MIN_OUTLINE_SECTIONS && sectionCount <= MAX_OUTLINE_SECTIONS;
+    }, `目次は${MIN_OUTLINE_SECTIONS}〜${MAX_OUTLINE_SECTIONS}項目で入力してください。`),
   tone: z.enum(['formal', 'casual']),
   additionalInstructions: z
     .string()

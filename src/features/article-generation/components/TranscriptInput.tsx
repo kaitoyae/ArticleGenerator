@@ -22,7 +22,7 @@ export function TranscriptInput({ value, onChange, disabled = false }: Transcrip
         className="transcript-input"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="インタビューの文字起こしを貼り付けてください。\n\n例: 2時間分の会話ログ、議事録、対談メモなど"
+        placeholder="文字起こしテキストを貼り付けてください。\n\n例: 2時間分の会話ログ、議事録、対談メモなど"
         disabled={disabled}
       />
 

@@ -2,8 +2,7 @@ export type Tone = 'formal' | 'casual';
 
 export interface GenerationSettings {
   theme: string;
-  speakerA: string;
-  speakerB: string;
+  manualOutline: string;
   tone: Tone;
   additionalInstructions: string;
 }

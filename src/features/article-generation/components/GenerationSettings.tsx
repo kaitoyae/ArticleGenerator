@@ -41,36 +41,21 @@ export function GenerationSettings({
           />
         </label>
 
-        <label className="form-field">
-          <span>話者A</span>
-          <input
-            type="text"
-            value={value.speakerA}
+        <label className="form-field field-full">
+          <span>目次（必須 / 3〜5項目）</span>
+          <textarea
+            value={value.manualOutline}
             onChange={(event) =>
-              onChange(updateField(value, 'speakerA', event.target.value))
+              onChange(updateField(value, 'manualOutline', event.target.value))
             }
-            placeholder="聞き手"
+            placeholder={'## 導入\n## 課題の背景\n## 実践アプローチ\n## まとめ'}
             disabled={disabled}
-            maxLength={30}
+            maxLength={2000}
           />
         </label>
 
         <label className="form-field">
-          <span>話者B</span>
-          <input
-            type="text"
-            value={value.speakerB}
-            onChange={(event) =>
-              onChange(updateField(value, 'speakerB', event.target.value))
-            }
-            placeholder="話し手"
-            disabled={disabled}
-            maxLength={30}
-          />
-        </label>
-
-        <label className="form-field">
-          <span>文体</span>
+          <span>文体（補助）</span>
           <select
             value={value.tone}
             onChange={(event) =>

@@ -5,7 +5,6 @@ import {
   buildArticleContinuationPrompt,
   buildArticlePrompt,
   buildChunkOutlinePrompt,
-  buildGlobalOutlinePrompt,
 } from './promptBuilders';
 import { chunkTranscript } from './chunkTranscript';
 import { createGeminiClient } from './geminiClient';
@@ -263,18 +262,8 @@ export async function runGenerationPipeline({
     chunkSummaries.push(summary);
   }
 
-  onProgress?.({ stage: 'planning', message: '構成案を統合しています...' });
-  const outline = await withRetry(
-    () =>
-      client.generateText(
-        buildGlobalOutlinePrompt({
-          chunkSummaries,
-          settings,
-        }),
-        { maxOutputTokens: 2000 },
-      ),
-    abortSignal,
-  );
+  onProgress?.({ stage: 'planning', message: '入力した目次を反映しています...' });
+  const outline = settings.manualOutline.trim();
 
   let markdown = '';
   for (let sectionAttempt = 0; sectionAttempt <= SECTION_RETRY_LIMIT; sectionAttempt += 1) {
