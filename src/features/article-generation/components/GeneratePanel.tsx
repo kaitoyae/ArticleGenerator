@@ -1,3 +1,4 @@
+import { GenerationStatus } from './GenerationStatus';
 import type { StageProgress } from '../types/generation';
 
 interface GeneratePanelProps {
@@ -25,57 +26,48 @@ export function GeneratePanel({
 }: GeneratePanelProps) {
   return (
     <section className="panel">
-      <div className="panel-header">
-        <h2>3. 生成実行</h2>
-        <span className="chip">Gemini 2.5 Flash</span>
-      </div>
+      <div className="generate-panel-body">
+        {!isUsingEnvKey && (
+          <div className="api-key-row">
+            <label>API Key</label>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(event) => onApiKeyChange(event.target.value)}
+              placeholder="AIza..."
+              disabled={isGenerating}
+            />
+          </div>
+        )}
 
-      <label className="form-field">
-        <span>Gemini API Key</span>
-        <input
-          type="password"
-          value={apiKey}
-          onChange={(event) => onApiKeyChange(event.target.value)}
-          placeholder="AIza..."
-          disabled={isGenerating || isUsingEnvKey}
-        />
-      </label>
+        {isUsingEnvKey && (
+          <p className="hint-text">環境変数のAPIキーを使用中</p>
+        )}
 
-      <p className="hint-text">
-        {isUsingEnvKey
-          ? '環境変数 VITE_GEMINI_API_KEY を使用中です。'
-          : 'APIキーは sessionStorage にのみ保存されます。'}
-      </p>
+        <div className="generate-actions">
+          <button
+            type="button"
+            className="btn btn-primary btn-lg"
+            onClick={onGenerate}
+            disabled={!canGenerate || isGenerating}
+          >
+            {isGenerating ? '生成中...' : '記事を生成'}
+          </button>
 
-      <div className="progress-box" data-stage={progress.stage}>
-        <p className="progress-main">{progress.message || '待機中'}</p>
-        {progress.chunkTotal ? (
-          <p className="progress-sub">
-            チャンク進捗: {progress.chunkIndex}/{progress.chunkTotal}
-          </p>
-        ) : null}
-      </div>
+          {isGenerating && (
+            <button
+              type="button"
+              className="btn btn-cancel"
+              onClick={onCancel}
+            >
+              中断
+            </button>
+          )}
+        </div>
 
-      {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
+        <GenerationStatus progress={progress} isGenerating={isGenerating} />
 
-      <div className="button-row">
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={onGenerate}
-          disabled={!canGenerate || isGenerating}
-        >
-          {isGenerating ? '生成中...' : '記事を生成'}
-        </button>
-
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={onCancel}
-          disabled={!isGenerating}
-        >
-          中断
-        </button>
+        {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
       </div>
     </section>
   );

@@ -18,36 +18,58 @@ export function ArticlePreview({
   copyMessage,
 }: ArticlePreviewProps) {
   return (
-    <section className="panel panel-preview">
+    <section className="panel">
       <div className="panel-header">
-        <h2>4. 生成結果</h2>
-        <span className="chip">Markdown</span>
+        <h2>生成結果</h2>
+        {article && <span className="chip">{formatNumber(article.charCount)}文字</span>}
       </div>
 
       {!article ? (
         <div className="empty-preview">
+          <svg className="empty-preview__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+            <polyline points="10 9 9 9 8 9" />
+          </svg>
           <p>
             {isGenerating
-              ? '記事を生成しています。完了まで少しお待ちください。'
-              : 'ここに生成結果が表示されます。'}
+              ? '記事を生成しています...'
+              : 'ここに生成結果が表示されます'}
           </p>
         </div>
       ) : (
         <>
-          <div className="result-meta">
-            <span>タイトル: {article.title}</span>
-            <span>文字数: {formatNumber(article.charCount)}</span>
-            <span>生成時刻: {new Date(article.generatedAt).toLocaleString('ja-JP')}</span>
-          </div>
-
-          <div className="button-row">
-            <button type="button" className="btn btn-secondary" onClick={onCopy}>
-              コピー
+          <div className="result-toolbar">
+            <div className="result-meta">
+              <span>{article.title}</span>
+              <span>{new Date(article.generatedAt).toLocaleString('ja-JP')}</span>
+            </div>
+            {copyMessage && <span className="copy-feedback">{copyMessage}</span>}
+            <button
+              type="button"
+              className="btn-icon"
+              onClick={onCopy}
+              title="コピー"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
             </button>
-            <button type="button" className="btn btn-secondary" onClick={onDownload}>
-              Markdown保存
+            <button
+              type="button"
+              className="btn-icon"
+              onClick={onDownload}
+              title="Markdown保存"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
             </button>
-            {copyMessage ? <span className="hint-text">{copyMessage}</span> : null}
           </div>
 
           <article className="markdown-preview">

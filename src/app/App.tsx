@@ -14,9 +14,14 @@ const SESSION_API_KEY = 'article-generator.gemini-api-key';
 const envApiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim() ?? '';
 
 const defaultSettings: GenerationSettingsType = {
+  articleFormat: 'standard',
+  interviewStyle: 'dash',
   theme: '',
   manualOutline: '',
+  speakerA: '聞き手',
+  speakerB: '話し手',
   tone: 'formal',
+  useStyleProfile: true,
   additionalInstructions: '',
 };
 
@@ -161,15 +166,15 @@ export default function App() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <p className="eyebrow">React + Gemini 2.5 Flash</p>
-        <h1>記事ジェネレータ</h1>
-        <p>
-          長文の文字起こしを入力すると、約2000文字の通常記事を生成します。
-        </p>
+        <div className="app-header__title">
+          <h1>記事ジェネレータ</h1>
+          <span className="app-header__desc">文字起こしから約2000文字の記事を生成</span>
+        </div>
+        <span className="header-badge">Gemini 2.5 Flash</span>
       </header>
 
       <main className="app-grid">
-        <div className="stack">
+        <div className="col-left">
           <TranscriptInput
             value={transcript}
             onChange={setTranscript}
@@ -177,7 +182,7 @@ export default function App() {
           />
         </div>
 
-        <div className="stack">
+        <div className="col-right">
           <GenerationSettings
             value={settings}
             onChange={setSettings}
@@ -195,9 +200,7 @@ export default function App() {
             onGenerate={handleGenerate}
             onCancel={handleCancel}
           />
-        </div>
 
-        <div className="stack">
           <ArticlePreview
             article={article}
             isGenerating={isGenerating}
